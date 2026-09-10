@@ -4,7 +4,6 @@ on:
     branches: [ main ]
 jobs:
   build:
-    # 核心修改：ubuntu-22.04，原生自带python3.10，解决E: Unable to locate package问题
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout source code
@@ -37,8 +36,14 @@ jobs:
         env:
           GRADLE_OPTS: "-Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000"
         run: ./gradlew assembleDebug --stacktrace --no-daemon
+
+      # 新增：列出apk目录，确认文件存在
+      - name: List APK files
+        run: ls -R app/build/outputs/apk/
+
+      # 修改上传路径
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/mobileArm64_v7a/debug/app-mobileArm64_v7a-debug.apk
