@@ -22,6 +22,12 @@ jobs:
           # 软链接，让chaquopy识别python3.10
           sudo ln -sf /usr/bin/python3.10 /usr/bin/python3
           python3 --version
+      # 缓存chaquopy下载的python包，加速后续构建
+      - name: Cache Chaquopy python
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches/chaquopy/downloads/python
+          key: chaquopy-python-3.10.14
       # Pre-download Android端Python包（手机运行用的arm64包）
       - name: Pre-download Chaquopy Python3.10 Android
         run: |
@@ -37,13 +43,13 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000"
         run: ./gradlew assembleDebug --stacktrace --no-daemon
 
-      # 新增：列出apk目录，确认文件存在
+      # 列出apk目录，方便排查
       - name: List APK files
         run: ls -R app/build/outputs/apk/
 
-      # 修改上传路径
+      # 使用通配符上传所有编译出来的APK
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk
-          path: app/build/outputs/apk/mobileArm64_v7a/debug/app-mobileArm64_v7a-debug.apk
+          path: app/build/outputs/apk/**/*.apk
