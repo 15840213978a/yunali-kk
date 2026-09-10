@@ -4,7 +4,8 @@ on:
     branches: [ main ]
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # 核心修改：ubuntu-22.04，原生自带python3.10，解决E: Unable to locate package问题
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -14,7 +15,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: gradle
-      # ========= 新增：给构建机器安装Python3.10（解决Chaquo找不到buildPython） =========
+      # ========= 安装Python3.10（适配Chaquopy） =========
       - name: Install Python3.10 for Chaquopy buildPython
         run: |
           sudo apt update
