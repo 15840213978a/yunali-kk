@@ -81,6 +81,8 @@ public class SettingFragment extends BaseFragment implements ConfigListener, The
     @Override
     protected void initView() {
         EventBus.getDefault().register(this);
+        mBinding.vodUrl.setText(VodConfig.getDesc());
+        mBinding.liveUrl.setText(LiveConfig.getDesc());
         mBinding.wallUrl.setText(WallConfig.getDesc());
         mBinding.versionText.setText(BuildConfig.VERSION_NAME);
         mBinding.version.setVisibility(View.GONE);
@@ -106,6 +108,8 @@ public class SettingFragment extends BaseFragment implements ConfigListener, The
 
     @Override
     protected void initEvent() {
+        mBinding.vod.setOnClickListener(this::onVod);
+        mBinding.live.setOnClickListener(this::onLive);
         mBinding.doh.setOnClickListener(this::setDoh);
         mBinding.wall.setOnClickListener(this::onWall);
         mBinding.size.setOnClickListener(this::setSize);
@@ -134,6 +138,12 @@ public class SettingFragment extends BaseFragment implements ConfigListener, The
 
     private void load(Config config) {
         switch (config.getType()) {
+            case 0:
+                VodConfig.load(config, getCallback());
+                break;
+            case 1:
+                LiveConfig.load(config, getCallback());
+                break;
             case 2:
                 Setting.putWall(0);
                 WallConfig.load(config, getCallback());
@@ -166,6 +176,14 @@ public class SettingFragment extends BaseFragment implements ConfigListener, The
     public void setTheme(int color) {
         Setting.putThemeColor(color);
         RefreshEvent.theme();
+    }
+
+    private void onVod(View view) {
+        ConfigDialog.create().vod().show(this);
+    }
+
+    private void onLive(View view) {
+        ConfigDialog.create().live().show(this);
     }
 
     private void onWall(View view) {
@@ -283,8 +301,17 @@ public class SettingFragment extends BaseFragment implements ConfigListener, The
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onConfigEvent(ConfigEvent event) {
-        if (event.type() != ConfigEvent.Type.COMMON) return;
-        mBinding.wallUrl.setText(WallConfig.getDesc());
+        switch (event.type()) {
+            case COMMON:
+                mBinding.wallUrl.setText(WallConfig.getDesc());
+                break;
+            case VOD:
+                mBinding.vodUrl.setText(VodConfig.getDesc());
+                break;
+            case LIVE:
+                mBinding.liveUrl.setText(LiveConfig.getDesc());
+                break;
+        }
     }
 
     @Override

@@ -16,7 +16,6 @@ import androidx.core.graphics.drawable.IconCompat;
 import androidx.core.splashscreen.SplashScreen;
 import androidx.viewbinding.ViewBinding;
 
-import com.fongmi.android.tv.Activation;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.Updater;
@@ -37,7 +36,6 @@ import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.service.PlaybackService;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.custom.FragmentStateManager;
-import com.fongmi.android.tv.ui.dialog.ActivationDialog;
 import com.fongmi.android.tv.ui.fragment.SettingDanmakuFragment;
 import com.fongmi.android.tv.ui.fragment.SettingDecodeFragment;
 import com.fongmi.android.tv.ui.fragment.SettingFragment;
@@ -47,7 +45,6 @@ import com.fongmi.android.tv.ui.fragment.VodFragment;
 import com.fongmi.android.tv.utils.FileChooser;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.PermissionUtil;
-import com.fongmi.android.tv.utils.Task;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.net.OkHttp;
 import com.google.android.material.navigation.NavigationBarView;
@@ -83,10 +80,6 @@ public class HomeActivity extends BaseActivity implements NavigationBarView.OnIt
         orientation = getResources().getConfiguration().orientation;
         mBinding.navigation.setOnItemSelectedListener(this);
         PermissionUtil.requestNotify(this);
-        if (!Activation.isActivated()) {
-            ActivationDialog.create().show(this);
-            return;
-        }
         initFragment(savedInstanceState);
         initConfig();
     }
@@ -206,21 +199,6 @@ public class HomeActivity extends BaseActivity implements NavigationBarView.OnIt
     public void onServerEvent(ServerEvent event) {
         if (event.type() == ServerEvent.Type.PUSH) VideoActivity.push(this, event.text());
         if (event.type() == ServerEvent.Type.SEARCH) SearchActivity.start(this, event.text());
-    }
-
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onActivationEvent(Activation.ActivationEvent event) {
-        initFragment(null);
-        initConfigAsync();
-    }
-
-    private void initConfigAsync() {
-        Task.execute(() -> {
-            Server.get().start();
-            VodConfig.get().init().load(getCallback());
-            LiveConfig.get().init().load();
-            WallConfig.get().init();
-        });
     }
 
     @Override

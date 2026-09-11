@@ -11,7 +11,6 @@ import androidx.room.PrimaryKey;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.db.AppDatabase;
-import com.fongmi.android.tv.utils.EncryptUtil;
 import com.github.catvod.utils.Prefers;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
@@ -90,13 +89,7 @@ public class Config {
 
     public static Config vod() {
         Config item = AppDatabase.get().getConfigDao().findOne(0);
-        String defaultUrl = EncryptUtil.decryptMulti("WyYJISgBMzwvPAY2BSQoCRYCVicNPQcsCjkdJTsgMTsIHTw3AAQZJDQoMywQKwUtMAFYCyAGCj4KCykxCjkRITU3DDUxKyc+MVcZJD4vCiYnFhYpKTgOFy4jMzovJSUxG00kJSs0IjoNOCA3MSYrJj1YMyU1LFwpAiQ8CzZHHicnEBQoERMkIw==");
-        if (item == null) {
-            item = create(0, defaultUrl, "源力影视");
-        } else if (TextUtils.isEmpty(item.getUrl())) {
-            item.url(defaultUrl).save();
-        }
-        return item;
+        return item == null ? create(0) : item;
     }
 
     public static Config live() {

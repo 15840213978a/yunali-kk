@@ -21,7 +21,6 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewbinding.ViewBinding;
 
-import com.fongmi.android.tv.Activation;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Product;
 import com.fongmi.android.tv.R;
@@ -54,7 +53,6 @@ import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.custom.CustomRowPresenter;
 import com.fongmi.android.tv.ui.custom.CustomSelector;
 import com.fongmi.android.tv.ui.custom.CustomTitleView;
-import com.fongmi.android.tv.ui.dialog.ActivationDialog;
 import com.fongmi.android.tv.ui.dialog.SiteDialog;
 import com.fongmi.android.tv.ui.presenter.FuncPresenter;
 import com.fongmi.android.tv.ui.presenter.HeaderPresenter;
@@ -68,7 +66,6 @@ import com.fongmi.android.tv.utils.KeyUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.PermissionUtil;
 import com.fongmi.android.tv.utils.ResUtil;
-import com.fongmi.android.tv.utils.Task;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.net.OkHttp;
 import com.google.common.collect.Lists;
@@ -124,10 +121,6 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         mClock = Clock.create(mBinding.clock);
         mBinding.progressLayout.showProgress();
         PermissionUtil.requestNotify(this);
-        if (!Activation.isActivated()) {
-            ActivationDialog.create().show(this);
-            return;
-        }
         DLNARendererService.start(this);
         setRecyclerView();
         setViewModel();
@@ -370,37 +363,6 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
                 VideoActivity.push(this, event.text());
                 break;
         }
-    }
-
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onActivationEvent(Activation.ActivationEvent event) {
-        mBinding.progressLayout.showProgress();
-        PermissionUtil.requestFile(this, granted -> {
-            mAutoGoVod = true;
-            DLNARendererService.start(this);
-            setRecyclerView();
-            setViewModel();
-            setAdapter();
-            setTitle();
-            setLogo();
-            Task.execute(() -> Server.get().start());
-            VodConfig.get().init().load(new Callback() {
-                @Override
-                public void success() {
-                    setLogo();
-                    showContent();
-                }
-
-                @Override
-                public void error(String msg) {
-                    Notify.show(msg);
-                    setLogo();
-                    showContent();
-                }
-            });
-            LiveConfig.get().init().load(new Callback());
-            WallConfig.get().init();
-        });
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
