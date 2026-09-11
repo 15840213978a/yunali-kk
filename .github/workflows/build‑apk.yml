@@ -34,19 +34,22 @@ jobs:
           PY_ZIP="python-3.10.14-android-arm64-v8a.zip"
           curl -L --connect-timeout 120 --retry 3 "https://chaquo.com/python/${PY_ZIP}" -o ${PY_ZIP}
           ls -lh .
-      # ===================== 【终极修复版】还原keystore =====================
-      - name: Restore keystore from Base64 secret
+      # ===================== 使用第三方Action，完全避开bash解析secret =====================
+      - name: Write base64 key to temp file
+        uses: timheuer/base64-to-file@v1.2
+        with:
+          encodedString: ${{ secrets.SIGNING_KEY }}
+          fileName: mykey.b64
+
+      - name: Decode to keystore
         env:
-          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
-          SIGNING_STORE_FILE: ${{ secrets.SIGNING_STORE_FILE }}
+          STORE_PATH: ${{ secrets.SIGNING_STORE_FILE }}
         run: |
           pwd
           ls -la
           mkdir -p app
-          # printf 原样输出base64，不增加换行，不解析特殊符号
-          printf "%s" "$SIGNING_KEY" > /tmp/key.b64
-          tr -d '\r\n' < /tmp/key.b64 | base64 -d > "$SIGNING_STORE_FILE"
-          ls -l "$SIGNING_STORE_FILE"
+          tr -d '\r\n' < mykey.b64 | base64 -d > "$STORE_PATH"
+          ls -l "$STORE_PATH"
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       # ===================== Gradle打包 =====================
