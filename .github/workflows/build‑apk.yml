@@ -34,14 +34,18 @@ jobs:
           PY_ZIP="python-3.10.14-android-arm64-v8a.zip"
           curl -L --connect-timeout 120 --retry 3 "https://chaquo.com/python/${PY_ZIP}" -o ${PY_ZIP}
           ls -lh .
-      # ===================== NodeJS直接解码base64，无中间文件，绕过bash =====================
-      - name: Restore keystore from base64 (node decode)
+      # ===================== 修复版本：node读取环境变量，避免bash插值 =====================
+      - name: Restore keystore from base64 (node decode fixed)
         env:
           B64KEY: ${{ secrets.SIGNING_KEY }}
           STORE_PATH: ${{ secrets.SIGNING_STORE_FILE }}
         run: |
           mkdir -p app
-          node -e "const fs=require('fs');fs.writeFileSync('$STORE_PATH',Buffer.from(process.env.B64KEY,'base64'))"
+          node -e "
+            const fs = require('fs');
+            const keyBuf = Buffer.from(process.env.B64KEY, 'base64');
+            fs.writeFileSync(process.env.STORE_PATH, keyBuf);
+          "
           ls -l "$STORE_PATH"
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
