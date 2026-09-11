@@ -34,13 +34,14 @@ jobs:
           PY_ZIP="python-3.10.14-android-arm64-v8a.zip"
           curl -L --connect-timeout 120 --retry 3 "https://chaquo.com/python/${PY_ZIP}" -o ${PY_ZIP}
           ls -lh .
-      # ===================== 修复版本：node读取环境变量，避免bash插值 =====================
+      # ===================== 修复版本：node读取环境变量，自动创建父目录 =====================
       - name: Restore keystore from base64 (node decode fixed)
         env:
           B64KEY: ${{ secrets.SIGNING_KEY }}
           STORE_PATH: ${{ secrets.SIGNING_STORE_FILE }}
         run: |
-          mkdir -p app
+          DIR=$(dirname "$STORE_PATH")
+          mkdir -p "$DIR"
           node -e "
             const fs = require('fs');
             const keyBuf = Buffer.from(process.env.B64KEY, 'base64');
