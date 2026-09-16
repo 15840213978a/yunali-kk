@@ -177,7 +177,27 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
     }
 
     private void onSite(View view) {
-        SiteDialog.create().change().show(this);
+        showProgress();
+        hideContent();
+        VodConfig.get().init().load(new Callback() {
+            @Override
+            public void success() {
+                showContent();
+                setTitle();
+                setLogo();
+                homeContent();
+                SiteDialog.create().change().show(VodFragment.this);
+            }
+
+            @Override
+            public void error(String msg) {
+                hideProgress();
+                showContent();
+                Notify.dismiss();
+                Notify.show(msg);
+                SiteDialog.create().change().show(VodFragment.this);
+            }
+        });
     }
 
     private void onFilter(View view) {
