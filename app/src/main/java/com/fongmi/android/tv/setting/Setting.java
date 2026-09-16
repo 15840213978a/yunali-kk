@@ -155,4 +155,18 @@ public class Setting {
     public static void putBlockedSites(Set<String> blockedSites) {
         Prefers.put("blocked_sites", App.gson().toJson(blockedSites));
     }
+
+    public static Set<String> getBlockedTags() {
+        String json = Prefers.getString("blocked_tags");
+        if (json.isEmpty()) return new HashSet<>();
+        try {
+            return App.gson().fromJson(json, TypeToken.getParameterized(Set.class, String.class).getType());
+        } catch (Exception e) {
+            return new HashSet<>();
+        }
+    }
+
+    public static void putBlockedTags(Set<String> blockedTags) {
+        Prefers.put("blocked_tags", App.gson().toJson(blockedTags));
+    }
 }

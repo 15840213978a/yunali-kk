@@ -1,5 +1,6 @@
 package com.fongmi.android.tv.ui.dialog;
 
+import android.graphics.Paint;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
@@ -17,6 +18,7 @@ import com.fongmi.android.tv.impl.SiteListener;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.adapter.SiteAdapter;
 import com.fongmi.android.tv.ui.custom.SpaceItemDecoration;
+import com.fongmi.android.tv.utils.Notify;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -30,6 +32,7 @@ import java.util.regex.Pattern;
 public class SiteDialog extends BaseAlertDialog implements SiteAdapter.OnClickListener {
 
     private static final int GRID_COUNT = 10;
+    private static final long DOUBLE_CLICK_INTERVAL = 400;
 
     private RecyclerView.ItemDecoration decoration;
     private DialogSiteBinding binding;
@@ -39,6 +42,8 @@ public class SiteDialog extends BaseAlertDialog implements SiteAdapter.OnClickLi
     private int type;
     private String searchText = "";
     private String selectedTag = "";
+    private long lastTagClickTime;
+    private String lastTagClick;
 
     public static SiteDialog create() {
         return new SiteDialog();
@@ -123,6 +128,8 @@ public class SiteDialog extends BaseAlertDialog implements SiteAdapter.OnClickLi
         binding.tagScroll.setVisibility(View.VISIBLE);
         binding.tagGroup.removeAllViews();
 
+        Set<String> blocked = Setting.getBlockedTags();
+
         Chip allChip = new Chip(requireContext());
         allChip.setText("全部");
         allChip.setCheckable(true);
@@ -137,13 +144,53 @@ public class SiteDialog extends BaseAlertDialog implements SiteAdapter.OnClickLi
             Chip chip = new Chip(requireContext());
             chip.setText(tag);
             chip.setCheckable(true);
-            chip.setOnClickListener(v -> {
-                selectedTag = chip.isChecked() ? tag : "";
-                if (!chip.isChecked()) allChip.setChecked(true);
-                else allChip.setChecked(false);
-                filterSites();
-            });
+            setBlockedStyle(chip, blocked.contains(tag));
+            chip.setOnClickListener(v -> onTagClick(tag, chip, allChip));
             binding.tagGroup.addView(chip);
+        }
+    }
+
+    private void onTagClick(String tag, Chip chip, Chip allChip) {
+        long now = System.currentTimeMillis();
+        boolean doubleClick = tag.equals(lastTagClick) && now - lastTagClickTime < DOUBLE_CLICK_INTERVAL;
+        lastTagClickTime = now;
+        lastTagClick = tag;
+        if (doubleClick) {
+            toggleTagBlock(tag, chip, allChip);
+            return;
+        }
+        selectedTag = chip.isChecked() ? tag : "";
+        if (!chip.isChecked()) allChip.setChecked(true);
+        else allChip.setChecked(false);
+        filterSites();
+    }
+
+    private void toggleTagBlock(String tag, Chip chip, Chip allChip) {
+        Set<String> blocked = Setting.getBlockedTags();
+        if (blocked.contains(tag)) {
+            blocked.remove(tag);
+            Notify.show("已解除屏蔽分类：" + tag);
+        } else {
+            blocked.add(tag);
+            Notify.show("已屏蔽分类：" + tag + "，搜索时不再显示该分类");
+        }
+        Setting.putBlockedTags(blocked);
+        setBlockedStyle(chip, blocked.contains(tag));
+        chip.setChecked(true);
+        allChip.setChecked(false);
+        selectedTag = tag;
+        filterSites();
+    }
+
+    private void setBlockedStyle(Chip chip, boolean blocked) {
+        if (blocked) {
+            chip.getPaint().setFlags(chip.getPaint().getFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+            chip.getPaint().setAntiAlias(true);
+            chip.setAlpha(0.45f);
+        } else {
+            chip.getPaint().setFlags(chip.getPaint().getFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
+            chip.getPaint().setAntiAlias(true);
+            chip.setAlpha(1.0f);
         }
     }
 

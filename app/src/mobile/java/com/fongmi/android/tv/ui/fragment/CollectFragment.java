@@ -33,6 +33,7 @@ import com.fongmi.android.tv.ui.custom.CustomScroller;
 import com.fongmi.android.tv.utils.ResUtil;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -114,7 +115,8 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
     }
 
     private void setSites() {
-        mSites = VodConfig.get().getSites().stream().filter(Site::isSearchable).toList();
+        Set<String> blockedTags = Setting.getBlockedTags();
+        mSites = VodConfig.get().getSites().stream().filter(Site::isSearchable).filter(site -> Collections.disjoint(site.getTags(), blockedTags)).toList();
     }
 
     private void setWidth() {

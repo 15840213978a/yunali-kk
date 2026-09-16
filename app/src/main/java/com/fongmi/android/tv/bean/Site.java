@@ -24,12 +24,15 @@ import com.google.gson.JsonElement;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Entity
 public class Site implements Parcelable {
@@ -160,6 +163,15 @@ public class Site implements Parcelable {
 
     public String getName() {
         return TextUtils.isEmpty(name) ? "" : name;
+    }
+
+    public List<String> getTags() {
+        List<String> tags = new ArrayList<>();
+        Matcher matcher = Pattern.compile("\\[([^\\]]+)]").matcher(getName());
+        while (matcher.find()) {
+            tags.add(matcher.group(1));
+        }
+        return tags;
     }
 
     public void setName(String name) {
