@@ -27,7 +27,9 @@ import com.fongmi.android.tv.ui.activity.HomeActivity;
 import com.fongmi.android.tv.ui.base.BaseFragment;
 import com.fongmi.android.tv.ui.dialog.ConfigDialog;
 import com.fongmi.android.tv.ui.dialog.HistoryDialog;
+import com.fongmi.android.tv.ui.dialog.LiveDialog;
 import com.fongmi.android.tv.ui.dialog.RestoreDialog;
+import com.fongmi.android.tv.ui.dialog.SiteDialog;
 import com.fongmi.android.tv.ui.dialog.ThemeDialog;
 import com.fongmi.android.tv.utils.FileUtil;
 import com.fongmi.android.tv.utils.Notify;
@@ -110,6 +112,10 @@ public class SettingFragment extends BaseFragment implements ConfigListener, The
     protected void initEvent() {
         mBinding.vod.setOnClickListener(this::onVod);
         mBinding.live.setOnClickListener(this::onLive);
+        mBinding.vodHome.setOnClickListener(this::onVodHome);
+        mBinding.vodHistory.setOnClickListener(this::onVodHistory);
+        mBinding.liveHome.setOnClickListener(this::onLiveHome);
+        mBinding.liveHistory.setOnClickListener(this::onLiveHistory);
         mBinding.doh.setOnClickListener(this::setDoh);
         mBinding.wall.setOnClickListener(this::onWall);
         mBinding.size.setOnClickListener(this::setSize);
@@ -184,6 +190,22 @@ public class SettingFragment extends BaseFragment implements ConfigListener, The
 
     private void onLive(View view) {
         ConfigDialog.create().live().show(this);
+    }
+
+    private void onVodHome(View view) {
+        SiteDialog.create().search().change().show(this);
+    }
+
+    private void onVodHistory(View view) {
+        HistoryDialog.create().vod().show(this);
+    }
+
+    private void onLiveHome(View view) {
+        LiveDialog.show(this);
+    }
+
+    private void onLiveHistory(View view) {
+        HistoryDialog.create().live().show(this);
     }
 
     private void onWall(View view) {

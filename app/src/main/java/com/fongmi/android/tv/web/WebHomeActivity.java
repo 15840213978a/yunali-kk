@@ -2,14 +2,19 @@ package com.fongmi.android.tv.web;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.webkit.CookieManager;
+import android.webkit.ConsoleMessage;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -17,11 +22,14 @@ import android.webkit.WebViewClient;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.fongmi.android.tv.BuildConfig;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.databinding.ActivityWebHomeBinding;
+import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.fongmi.android.tv.utils.Util;
+import com.github.catvod.utils.Json;
 import com.google.gson.JsonObject;
 
 import java.util.HashMap;
@@ -31,10 +39,12 @@ import java.util.Map;
 public class WebHomeActivity extends AppCompatActivity {
 
     private static final String BRIDGE = "fongmiBridge";
+    private static final long DIAG_DELAY_MS = 4000;
     private static boolean active;
 
     private ActivityWebHomeBinding mBinding;
     private String home;
+    private boolean errorShown;
 
     public static boolean isActive() {
         return active;
@@ -64,6 +74,8 @@ public class WebHomeActivity extends AppCompatActivity {
 
     private void initWebView() {
         WebView webView = mBinding.webView;
+        Server.get().start();
+        if (BuildConfig.DEBUG) WebView.setWebContentsDebuggingEnabled(true);
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true);
         WebSettings settings = webView.getSettings();
@@ -88,12 +100,89 @@ public class WebHomeActivity extends AppCompatActivity {
         webView.addJavascriptInterface(new HomeWebBridge(this, webView), BRIDGE);
         webView.setWebViewClient(new WebViewClient() {
             @Override
+            public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+                super.onPageStarted(view, url, favicon);
+                errorShown = false;
+            }
+
+            @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 injectSdk();
+                scheduleDiagnosis();
+            }
+
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                super.onReceivedError(view, request, error);
+                if (!request.isForMainFrame() || errorShown) return;
+                errorShown = true;
+                showErrorPage(description(error.getDescription()), String.valueOf(error.getErrorCode()));
             }
         });
-        webView.setWebChromeClient(new WebChromeClient());
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onConsoleMessage(ConsoleMessage message) {
+                Log.e("WebHome", "console " + message.messageLevel() + ": " + message.message() + " @" + message.sourceId() + ":" + message.lineNumber());
+                return super.onConsoleMessage(message);
+            }
+        });
+    }
+
+    private String description(CharSequence text) {
+        return text == null ? "" : text.toString().replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    private void scheduleDiagnosis() {
+        mBinding.webView.postDelayed(() -> {
+            if (errorShown || isFinishing() || isDestroyed()) return;
+            mBinding.webView.evaluateJavascript("(function(){try{return JSON.stringify({text:(document.body?document.body.innerText:'').replace(/\\s+/g,' ').trim(),title:document.title||''});}catch(e){return '{}';}})()", value -> {
+                String text = parseJsonField(value, "text");
+                if (!TextUtils.isEmpty(text)) return;
+                String title = parseJsonField(value, "title");
+                if (!TextUtils.isEmpty(title)) return;
+                showDiagnosisPage();
+            });
+        }, DIAG_DELAY_MS);
+    }
+
+    private String parseJsonField(String json, String key) {
+        if (TextUtils.isEmpty(json) || "null".equals(json)) return "";
+        try {
+            return Json.safeString(Json.parse(json).isJsonObject() ? Json.parse(json).getAsJsonObject() : new JsonObject(), key);
+        } catch (Throwable e) {
+            return "";
+        }
+    }
+
+    private void showErrorPage(String description, String code) {
+        String body = "<h2>页面加载失败</h2><p><b>错误：</b>" + description + "（" + code + "）</p>";
+        showPage(body);
+    }
+
+    private void showDiagnosisPage() {
+        String body = "<h2>页面内容为空</h2><p>页面已打开但没有渲染出内容。常见原因是系统 WebView 版本过低，无法运行该页面使用的 JS 框架。</p><p>建议到应用商店更新「Android System WebView」和「Chrome」后重试。</p>";
+        showPage(body);
+    }
+
+    private void showPage(String body) {
+        String html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><style>body{background:#141414;color:#e8e8e8;font-family:sans-serif;padding:28px;font-size:16px;line-height:1.7}h2{font-size:19px;margin:0 0 14px;color:#fff}a{color:#8ab4f8}</style></head><body>"
+                + body
+                + "<p><b>WebView：</b>" + description(webviewVersion()) + "<br><b>Android：</b>" + Build.VERSION.SDK_INT + "<br><b>地址：</b>" + description(home) + "</p>"
+                + "<p><a href=\"" + home + "\">重新加载</a></p></body></html>";
+        mBinding.webView.loadDataWithBaseURL(home, html, "text/html", "utf-8", null);
+    }
+
+    private String webviewVersion() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                PackageInfo info = WebView.getCurrentWebViewPackage();
+                if (info != null) return info.packageName + " " + info.versionName;
+            }
+            return "未知";
+        } catch (Throwable e) {
+            return "未知";
+        }
     }
 
     private void loadHome() {

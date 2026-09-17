@@ -28,59 +28,113 @@
             android:paddingBottom="16dp">
 
             <androidx.appcompat.widget.LinearLayoutCompat
-                android:id="@+id/vod"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/shape_item"
+                android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <com.google.android.material.textview.MaterialTextView
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:id="@+id/vod"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="12dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/shape_item"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="16dp"
+                        android:text="@string/setting_vod"
+                        android:textColor="@color/white"
+                        android:textSize="16sp" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/vodUrl"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="middle"
+                        android:gravity="end"
+                        android:singleLine="true"
+                        android:textColor="@color/white"
+                        android:textSize="16sp"
+                        tools:text="https://" />
+
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
+                <androidx.appcompat.widget.AppCompatImageView
+                    android:id="@+id/vodHome"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="16dp"
-                    android:text="@string/setting_vod"
-                    android:textColor="@color/white"
-                    android:textSize="16sp" />
+                    android:layout_marginEnd="12dp"
+                    android:background="@drawable/shape_item"
+                    android:padding="7dp"
+                    android:src="@drawable/ic_setting_home" />
 
-                <com.google.android.material.textview.MaterialTextView
-                    android:id="@+id/vodUrl"
-                    android:layout_width="match_parent"
+                <androidx.appcompat.widget.AppCompatImageView
+                    android:id="@+id/vodHistory"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:ellipsize="middle"
-                    android:gravity="end"
-                    android:singleLine="true"
-                    android:textColor="@color/white"
-                    android:textSize="16sp"
-                    tools:text="https://" />
+                    android:background="@drawable/shape_item"
+                    android:padding="7dp"
+                    android:src="@drawable/ic_setting_history" />
 
             </androidx.appcompat.widget.LinearLayoutCompat>
 
             <androidx.appcompat.widget.LinearLayoutCompat
-                android:id="@+id/live"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:background="@drawable/shape_item"
+                android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <com.google.android.material.textview.MaterialTextView
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:id="@+id/live"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="12dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/shape_item"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="16dp"
+                        android:text="@string/setting_live"
+                        android:textColor="@color/white"
+                        android:textSize="16sp" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/liveUrl"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="middle"
+                        android:gravity="end"
+                        android:singleLine="true"
+                        android:textColor="@color/white"
+                        android:textSize="16sp"
+                        tools:text="https://" />
+
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
+                <androidx.appcompat.widget.AppCompatImageView
+                    android:id="@+id/liveHome"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="16dp"
-                    android:text="@string/setting_live"
-                    android:textColor="@color/white"
-                    android:textSize="16sp" />
+                    android:layout_marginEnd="12dp"
+                    android:background="@drawable/shape_item"
+                    android:padding="7dp"
+                    android:src="@drawable/ic_setting_home" />
 
-                <com.google.android.material.textview.MaterialTextView
-                    android:id="@+id/liveUrl"
-                    android:layout_width="match_parent"
+                <androidx.appcompat.widget.AppCompatImageView
+                    android:id="@+id/liveHistory"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:ellipsize="middle"
-                    android:gravity="end"
-                    android:singleLine="true"
-                    android:textColor="@color/white"
-                    android:textSize="16sp"
-                    tools:text="https://" />
+                    android:background="@drawable/shape_item"
+                    android:padding="7dp"
+                    android:src="@drawable/ic_setting_history" />
 
             </androidx.appcompat.widget.LinearLayoutCompat>
 
