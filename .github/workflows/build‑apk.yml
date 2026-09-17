@@ -162,27 +162,48 @@ jobs:
           if-no-files-found: error
 
       # ===================== 发布到 GitHub Releases 的“资源”位置 =====================
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: auto-${{ github.run_number }}
-          name: 自动构建的 Release APK
-          body: |
-            自动构建的四版本 APK
-
-            Commit: ${{ github.sha }}
-
-            - 手机版 arm64-v8a
-            - 手机版 armeabi-v7a
-            - 电视版 arm64-v8a
-            - 电视版 armeabi-v7a
-          files: |
-            dist/手机版-arm64-v8a.apk
-            dist/手机版-armeabi-v7a.apk
-            dist/电视版-arm64-v8a.apk
-            dist/电视版-armeabi-v7a.apk
-          prerelease: false
-          make_latest: true
-          fail_on_unmatched_files: true
+      # 不再使用 softprops/action-gh-release，避免多文件并发上传后更新 asset label 出现 404。
+      # 改用 GitHub CLI 串行创建并上传四个 APK。
+      - name: Publish four APKs to GitHub Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          TAG="auto-${{ github.run_number }}"
+          TITLE="自动构建的 Release APK"
+
+          cat > release-notes.md <<EOF
+          自动构建的四版本 APK
+
+          Commit: ${{ github.sha }}
+
+          - 手机版 arm64-v8a
+          - 手机版 armeabi-v7a
+          - 电视版 arm64-v8a
+          - 电视版 armeabi-v7a
+          EOF
+
+          echo "Release tag: $TAG"
+          gh --version
+
+          # 同一 run 重新执行时先清理上一次可能留下的半成品 Release。
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "删除旧的半成品 Release: $TAG"
+            gh release delete "$TAG" --cleanup-tag -y
+          else
+            git push origin ":refs/tags/$TAG" >/dev/null 2>&1 || true
+          fi
+
+          gh release create "$TAG"             --target "$GITHUB_SHA"             --title "$TITLE"             --notes-file release-notes.md             --latest
+
+          # 串行上传，避免并发 asset label 更新竞态。
+          for APK in             "dist/手机版-arm64-v8a.apk"             "dist/手机版-armeabi-v7a.apk"             "dist/电视版-arm64-v8a.apk"             "dist/电视版-armeabi-v7a.apk"
+          do
+            test -f "$APK" || { echo "::error::未找到 $APK"; exit 1; }
+            echo "上传: $APK"
+            gh release upload "$TAG" "$APK" --clobber
+          done
+
+          echo "== Release assets =="
+          gh release view "$TAG" --json assets --jq '.assets[].name'
