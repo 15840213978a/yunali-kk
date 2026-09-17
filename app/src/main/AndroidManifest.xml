@@ -83,6 +83,10 @@
             android:process=":error_activity"
             android:theme="@style/Theme.Crash" />
 
+        <activity
+            android:name="com.fongmi.android.tv.web.WebHomeActivity"
+            android:launchMode="singleTask" />
+
         <receiver
             android:name=".receiver.ActionReceiver"
             android:exported="false">

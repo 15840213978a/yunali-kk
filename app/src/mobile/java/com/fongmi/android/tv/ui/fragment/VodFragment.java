@@ -45,6 +45,7 @@ import com.fongmi.android.tv.ui.dialog.SiteDialog;
 import com.fongmi.android.tv.utils.ImgUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
+import com.fongmi.android.tv.web.WebHomeActivity;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -230,6 +231,10 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
     }
 
     private void homeContent() {
+        if (getHome().hasHomePage()) {
+            if (!WebHomeActivity.isActive()) WebHomeActivity.start(requireActivity());
+            return;
+        }
         showProgress();
         setFabVisible(0);
         mAdapter.clear();

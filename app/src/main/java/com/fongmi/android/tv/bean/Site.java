@@ -107,6 +107,10 @@ public class Site implements Parcelable {
     private Style style;
 
     @Ignore
+    @SerializedName("homePage")
+    private String homePage;
+
+    @Ignore
     private boolean selected;
 
     public Site() {
@@ -163,6 +167,14 @@ public class Site implements Parcelable {
 
     public String getName() {
         return TextUtils.isEmpty(name) ? "" : name;
+    }
+
+    public String getHomePage() {
+        return TextUtils.isEmpty(homePage) ? "" : homePage;
+    }
+
+    public boolean hasHomePage() {
+        return !getHomePage().isEmpty();
     }
 
     public List<String> getTags() {
