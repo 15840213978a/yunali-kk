@@ -93,7 +93,8 @@ jobs:
             fi
           done
 
-      - name: Build four Release APKs
+      # ===================== 逐个构建并立即收集，避免手机/电视同名 APK 互相覆盖 =====================
+      - name: Build & collect Mobile arm64-v8a
         env:
           GRADLE_OPTS: "-Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000"
           KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
@@ -101,58 +102,101 @@ jobs:
           KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-
           STORE_FILE="$GITHUB_WORKSPACE/.key/release.jks"
-
-          for v in KEY_ALIAS STORE_PASSWORD KEY_PASSWORD; do
-            if [ -z "${!v:-}" ]; then
-              echo "::error::签名变量 $v 为空"
-              exit 1
-            fi
-          done
-
-          keytool -list \
-            -keystore "$STORE_FILE" \
-            -storepass "$STORE_PASSWORD" \
-            -alias "$KEY_ALIAS" \
-            >/dev/null
-
-          ./gradlew \
-            :app:assembleMobileArm64_v8aRelease \
-            :app:assembleMobileArmeabi_v7aRelease \
-            :app:assembleLeanbackArm64_v8aRelease \
-            :app:assembleLeanbackArmeabi_v7aRelease \
-            -PstoreFile="${STORE_FILE}" \
-            -PkeyAlias="${KEY_ALIAS}" \
-            -PstorePassword="${STORE_PASSWORD}" \
-            -PkeyPassword="${KEY_PASSWORD}" \
-            --stacktrace --no-daemon
-
-      - name: Collect and rename four APKs
-        run: |
-          set -euo pipefail
           rm -rf dist
           mkdir -p dist
+          rm -rf app/build/outputs/apk
 
-          find app/build/outputs/apk -type f -name "*.apk" -print
+          ./gradlew :app:assembleMobileArm64_v8aRelease \
+            -PstoreFile="$STORE_FILE" \
+            -PkeyAlias="$KEY_ALIAS" \
+            -PstorePassword="$STORE_PASSWORD" \
+            -PkeyPassword="$KEY_PASSWORD" \
+            --stacktrace --no-daemon
 
-          MOBILE_8A="$(find app/build/outputs/apk -type f -name "*.apk" | grep -Ei 'mobile.*arm64|arm64.*mobile' | head -n1 || true)"
-          MOBILE_7A="$(find app/build/outputs/apk -type f -name "*.apk" | grep -Ei 'mobile.*armeabi|armeabi.*mobile|mobile.*v7a|v7a.*mobile' | head -n1 || true)"
-          TV_8A="$(find app/build/outputs/apk -type f -name "*.apk" | grep -Ei '(leanback|tv).*arm64|arm64.*(leanback|tv)' | head -n1 || true)"
-          TV_7A="$(find app/build/outputs/apk -type f -name "*.apk" | grep -Ei '(leanback|tv).*(armeabi|v7a)|(armeabi|v7a).*(leanback|tv)' | head -n1 || true)"
+          APK="$(find app/build/outputs/apk -type f -name '*.apk' | head -n1)"
+          [ -n "$APK" ] || { echo "::error::未找到 Mobile arm64-v8a APK"; exit 1; }
+          cp "$APK" "dist/手机版-arm64-v8a.apk"
 
-          [ -n "$MOBILE_8A" ] || { echo "::error::未找到手机 arm64-v8a APK"; exit 1; }
-          [ -n "$MOBILE_7A" ] || { echo "::error::未找到手机 armeabi-v7a APK"; exit 1; }
-          [ -n "$TV_8A" ] || { echo "::error::未找到电视 arm64-v8a APK"; exit 1; }
-          [ -n "$TV_7A" ] || { echo "::error::未找到电视 armeabi-v7a APK"; exit 1; }
+      - name: Build & collect Mobile armeabi-v7a
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000"
+          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          STORE_FILE="$GITHUB_WORKSPACE/.key/release.jks"
+          rm -rf app/build/outputs/apk
 
-          cp "$MOBILE_8A" dist/手机版-arm64-v8a.apk
-          cp "$MOBILE_7A" dist/手机版-armeabi-v7a.apk
-          cp "$TV_8A" dist/电视版-arm64-v8a.apk
-          cp "$TV_7A" dist/电视版-armeabi-v7a.apk
+          ./gradlew :app:assembleMobileArmeabi_v7aRelease \
+            -PstoreFile="$STORE_FILE" \
+            -PkeyAlias="$KEY_ALIAS" \
+            -PstorePassword="$STORE_PASSWORD" \
+            -PkeyPassword="$KEY_PASSWORD" \
+            --stacktrace --no-daemon
 
-          echo "== Release APKs =="
+          APK="$(find app/build/outputs/apk -type f -name '*.apk' | head -n1)"
+          [ -n "$APK" ] || { echo "::error::未找到 Mobile armeabi-v7a APK"; exit 1; }
+          cp "$APK" "dist/手机版-armeabi-v7a.apk"
+
+      - name: Build & collect TV arm64-v8a
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000"
+          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          STORE_FILE="$GITHUB_WORKSPACE/.key/release.jks"
+          rm -rf app/build/outputs/apk
+
+          ./gradlew :app:assembleLeanbackArm64_v8aRelease \
+            -PstoreFile="$STORE_FILE" \
+            -PkeyAlias="$KEY_ALIAS" \
+            -PstorePassword="$STORE_PASSWORD" \
+            -PkeyPassword="$KEY_PASSWORD" \
+            --stacktrace --no-daemon
+
+          APK="$(find app/build/outputs/apk -type f -name '*.apk' | head -n1)"
+          [ -n "$APK" ] || { echo "::error::未找到 TV arm64-v8a APK"; exit 1; }
+          cp "$APK" "dist/电视版-arm64-v8a.apk"
+
+      - name: Build & collect TV armeabi-v7a
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000"
+          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          STORE_FILE="$GITHUB_WORKSPACE/.key/release.jks"
+          rm -rf app/build/outputs/apk
+
+          ./gradlew :app:assembleLeanbackArmeabi_v7aRelease \
+            -PstoreFile="$STORE_FILE" \
+            -PkeyAlias="$KEY_ALIAS" \
+            -PstorePassword="$STORE_PASSWORD" \
+            -PkeyPassword="$KEY_PASSWORD" \
+            --stacktrace --no-daemon
+
+          APK="$(find app/build/outputs/apk -type f -name '*.apk' | head -n1)"
+          [ -n "$APK" ] || { echo "::error::未找到 TV armeabi-v7a APK"; exit 1; }
+          cp "$APK" "dist/电视版-armeabi-v7a.apk"
+
+      - name: Verify four APK files
+        run: |
+          set -euo pipefail
+          echo "== dist =="
           ls -lh dist/
+
+          test -f "dist/手机版-arm64-v8a.apk"
+          test -f "dist/手机版-armeabi-v7a.apk"
+          test -f "dist/电视版-arm64-v8a.apk"
+          test -f "dist/电视版-armeabi-v7a.apk"
+
+          COUNT="$(find dist -maxdepth 1 -type f -name '*.apk' | wc -l)"
+          [ "$COUNT" -eq 4 ] || { echo "::error::实际 APK 数量是 $COUNT，不是 4"; exit 1; }
 
       - name: Upload four APKs to Actions
         uses: actions/upload-artifact@v4
