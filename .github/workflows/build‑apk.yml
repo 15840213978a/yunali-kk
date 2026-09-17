@@ -40,22 +40,32 @@ jobs:
           curl -L --connect-timeout 120 --retry 3 "https://chaquo.com/python/${PY_ZIP}" -o ${PY_ZIP}
           ls -lh .
 
-      # ===================== 还原签名文件，自动创建父目录 =====================
-      - name: Restore keystore from base64 (node decode fixed)
+      # ===================== 还原签名文件 =====================
+      # SIGNING_STORE_FILE 不再放 Secret，固定到仓库工作目录，避免路径变量为空。
+      - name: Restore keystore from base64
         env:
           B64KEY: ${{ secrets.SIGNING_KEY }}
-          STORE_PATH: ${{ secrets.SIGNING_STORE_FILE }}
         run: |
+          set -euo pipefail
+
+          STORE_PATH="$GITHUB_WORKSPACE/.key/release.jks"
+
+          if [ -z "${B64KEY:-}" ]; then
+            echo "::error::缺少 GitHub Secret: SIGNING_KEY"
+            exit 1
+          fi
+
           echo "Target keystore path: $STORE_PATH"
-          DIR=$(dirname "$STORE_PATH")
-          echo "Create directory: $DIR"
-          mkdir -p "$DIR"
-          node -e "
-            const fs = require('fs');
-            const keyBuf = Buffer.from(process.env.B64KEY, 'base64');
-            fs.writeFileSync(process.env.STORE_PATH, keyBuf);
-          "
-          ls -l "$STORE_PATH"
+          mkdir -p "$(dirname "$STORE_PATH")"
+
+          printf '%s' "$B64KEY" | base64 --decode > "$STORE_PATH"
+
+          if [ ! -s "$STORE_PATH" ]; then
+            echo "::error::签名文件解码失败或为空"
+            exit 1
+          fi
+
+          ls -lh "$STORE_PATH"
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -64,16 +74,32 @@ jobs:
       - name: Build Release APK
         env:
           GRADLE_OPTS: "-Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000"
-          STORE_FILE: ${{ secrets.SIGNING_STORE_FILE }}
           KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
+          set -euo pipefail
+
+          STORE_FILE="$GITHUB_WORKSPACE/.key/release.jks"
+
+          for v in KEY_ALIAS STORE_PASSWORD KEY_PASSWORD; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error::签名变量 $v 为空"
+              exit 1
+            fi
+          done
+
+          keytool -list \
+            -keystore "$STORE_FILE" \
+            -storepass "$STORE_PASSWORD" \
+            -alias "$KEY_ALIAS" \
+            >/dev/null
+
           ./gradlew assembleRelease \
-            -PstoreFile=${STORE_FILE} \
-            -PkeyAlias=${KEY_ALIAS} \
-            -PstorePassword=${STORE_PASSWORD} \
-            -PkeyPassword=${KEY_PASSWORD} \
+            -PstoreFile="$STORE_FILE" \
+            -PkeyAlias="$KEY_ALIAS" \
+            -PstorePassword="$STORE_PASSWORD" \
+            -PkeyPassword="$KEY_PASSWORD" \
             --stacktrace --no-daemon
 
       - name: List APK files
