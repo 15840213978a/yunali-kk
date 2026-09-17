@@ -1,6 +1,5 @@
 package com.fongmi.android.tv.web;
 
-import com.fongmi.android.tv.utils.Json;
 import android.text.TextUtils;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
@@ -17,6 +16,7 @@ import com.fongmi.android.tv.ui.activity.SearchActivity;
 import com.fongmi.android.tv.ui.activity.VideoActivity;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.Task;
+import com.github.catvod.utils.Json;
 import com.github.catvod.utils.Prefers;
 import com.google.gson.JsonObject;
 
