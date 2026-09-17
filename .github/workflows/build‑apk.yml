@@ -116,7 +116,7 @@ jobs:
 
           APK="$(find app/build/outputs/apk -type f -name '*.apk' | head -n1)"
           [ -n "$APK" ] || { echo "::error::未找到 Mobile arm64-v8a APK"; exit 1; }
-          cp "$APK" "dist/手机版-arm64-v8a.apk"
+          cp "$APK" "dist/mobile-arm64-v8a.apk"
 
       - name: Build & collect Mobile armeabi-v7a
         env:
@@ -138,7 +138,7 @@ jobs:
 
           APK="$(find app/build/outputs/apk -type f -name '*.apk' | head -n1)"
           [ -n "$APK" ] || { echo "::error::未找到 Mobile armeabi-v7a APK"; exit 1; }
-          cp "$APK" "dist/手机版-armeabi-v7a.apk"
+          cp "$APK" "dist/mobile-armeabi-v7a.apk"
 
       - name: Build & collect TV arm64-v8a
         env:
@@ -160,7 +160,7 @@ jobs:
 
           APK="$(find app/build/outputs/apk -type f -name '*.apk' | head -n1)"
           [ -n "$APK" ] || { echo "::error::未找到 TV arm64-v8a APK"; exit 1; }
-          cp "$APK" "dist/电视版-arm64-v8a.apk"
+          cp "$APK" "dist/tv-arm64-v8a.apk"
 
       - name: Build & collect TV armeabi-v7a
         env:
@@ -182,7 +182,7 @@ jobs:
 
           APK="$(find app/build/outputs/apk -type f -name '*.apk' | head -n1)"
           [ -n "$APK" ] || { echo "::error::未找到 TV armeabi-v7a APK"; exit 1; }
-          cp "$APK" "dist/电视版-armeabi-v7a.apk"
+          cp "$APK" "dist/tv-armeabi-v7a.apk"
 
       - name: Verify four APK files
         run: |
@@ -190,10 +190,10 @@ jobs:
           echo "== dist =="
           ls -lh dist/
 
-          test -f "dist/手机版-arm64-v8a.apk"
-          test -f "dist/手机版-armeabi-v7a.apk"
-          test -f "dist/电视版-arm64-v8a.apk"
-          test -f "dist/电视版-armeabi-v7a.apk"
+          test -f "dist/mobile-arm64-v8a.apk"
+          test -f "dist/mobile-armeabi-v7a.apk"
+          test -f "dist/tv-arm64-v8a.apk"
+          test -f "dist/tv-armeabi-v7a.apk"
 
           COUNT="$(find dist -maxdepth 1 -type f -name '*.apk' | wc -l)"
           [ "$COUNT" -eq 4 ] || { echo "::error::实际 APK 数量是 $COUNT，不是 4"; exit 1; }
@@ -239,10 +239,18 @@ jobs:
             git push origin ":refs/tags/$TAG" >/dev/null 2>&1 || true
           fi
 
-          gh release create "$TAG"             --target "$GITHUB_SHA"             --title "$TITLE"             --notes-file release-notes.md             --latest
+          gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --title "$TITLE" \
+            --notes-file release-notes.md \
+            --latest
 
           # 串行上传，避免并发 asset label 更新竞态。
-          for APK in             "dist/手机版-arm64-v8a.apk"             "dist/手机版-armeabi-v7a.apk"             "dist/电视版-arm64-v8a.apk"             "dist/电视版-armeabi-v7a.apk"
+          for APK in \
+            "dist/mobile-arm64-v8a.apk" \
+            "dist/mobile-armeabi-v7a.apk" \
+            "dist/tv-arm64-v8a.apk" \
+            "dist/tv-armeabi-v7a.apk"
           do
             test -f "$APK" || { echo "::error::未找到 $APK"; exit 1; }
             echo "上传: $APK"
