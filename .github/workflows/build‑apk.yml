@@ -43,100 +43,123 @@ jobs:
           curl -L --connect-timeout 120 --retry 3 "https://chaquo.com/python/${PY_ZIP}" -o ${PY_ZIP}
           ls -lh .
 
-      # ===================== 还原签名文件 =====================
-      # SIGNING_STORE_FILE 不再放 Secret，固定到仓库工作目录，避免路径变量为空。
-      - name: Restore keystore from base64
+      # ===================== 还原签名文件，自动创建父目录 =====================
+      - name: Restore keystore from base64 (node decode fixed)
         env:
           B64KEY: ${{ secrets.SIGNING_KEY }}
+          STORE_PATH: ${{ secrets.SIGNING_STORE_FILE }}
         run: |
-          set -euo pipefail
-
-          STORE_PATH="$GITHUB_WORKSPACE/.key/release.jks"
-
-          if [ -z "${B64KEY:-}" ]; then
-            echo "::error::缺少 GitHub Secret: SIGNING_KEY"
-            exit 1
-          fi
-
           echo "Target keystore path: $STORE_PATH"
-          mkdir -p "$(dirname "$STORE_PATH")"
-
-          printf '%s' "$B64KEY" | base64 --decode > "$STORE_PATH"
-
-          if [ ! -s "$STORE_PATH" ]; then
-            echo "::error::签名文件解码失败或为空"
-            exit 1
-          fi
-
-          ls -lh "$STORE_PATH"
+          DIR=$(dirname "$STORE_PATH")
+          echo "Create directory: $DIR"
+          mkdir -p "$DIR"
+          node -e "
+            const fs = require('fs');
+            const keyBuf = Buffer.from(process.env.B64KEY, 'base64');
+            fs.writeFileSync(process.env.STORE_PATH, keyBuf);
+          "
+          ls -l "$STORE_PATH"
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # ===================== Gradle打包，修复参数换行问题 =====================
-      - name: Build Release APK
+      # ===================== 四版本打包：手机/电视 × 8A/7A =====================
+      - name: Verify four variant tasks
+        run: |
+          set -euo pipefail
+          ./gradlew :app:tasks --all > app-tasks.txt
+
+          REQUIRED_TASKS=(
+            assembleMobileArm64_v8aRelease
+            assembleMobileArmeabi_v7aRelease
+            assembleLeanbackArm64_v8aRelease
+            assembleLeanbackArmeabi_v7aRelease
+          )
+
+          for task in "${REQUIRED_TASKS[@]}"; do
+            if ! grep -q "$task" app-tasks.txt; then
+              echo "::error::源码缺少 Gradle 任务 :app:$task"
+              echo "::error::需要 app/build.gradle(.kts) 定义 mobile/leanback 与 arm64_v8a/armeabi_v7a 四个 flavor。"
+              exit 1
+            fi
+          done
+
+      - name: Build four Release APKs
         env:
           GRADLE_OPTS: "-Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000"
+          STORE_FILE: ${{ secrets.SIGNING_STORE_FILE }}
           KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           set -euo pipefail
 
-          STORE_FILE="$GITHUB_WORKSPACE/.key/release.jks"
-
-          for v in KEY_ALIAS STORE_PASSWORD KEY_PASSWORD; do
-            if [ -z "${!v:-}" ]; then
-              echo "::error::签名变量 $v 为空"
-              exit 1
-            fi
-          done
-
-          keytool -list \
-            -keystore "$STORE_FILE" \
-            -storepass "$STORE_PASSWORD" \
-            -alias "$KEY_ALIAS" \
-            >/dev/null
-
-          ./gradlew assembleRelease \
-            -PstoreFile="$STORE_FILE" \
-            -PkeyAlias="$KEY_ALIAS" \
-            -PstorePassword="$STORE_PASSWORD" \
-            -PkeyPassword="$KEY_PASSWORD" \
+          ./gradlew \
+            :app:assembleMobileArm64_v8aRelease \
+            :app:assembleMobileArmeabi_v7aRelease \
+            :app:assembleLeanbackArm64_v8aRelease \
+            :app:assembleLeanbackArmeabi_v7aRelease \
+            -PstoreFile="${STORE_FILE}" \
+            -PkeyAlias="${KEY_ALIAS}" \
+            -PstorePassword="${STORE_PASSWORD}" \
+            -PkeyPassword="${KEY_PASSWORD}" \
             --stacktrace --no-daemon
 
-      - name: List APK files
-        run: ls -R app/build/outputs/apk/
-
-      - name: Prepare APK for GitHub Release
-        id: apk
+      - name: Collect and rename four APKs
         run: |
           set -euo pipefail
+          rm -rf dist
+          mkdir -p dist
 
-          APK="$(find app/build/outputs/apk -type f -name '*.apk' | head -n1)"
-          if [ -z "$APK" ]; then
-            echo "::error::未找到 APK"
-            exit 1
-          fi
+          find app/build/outputs/apk -type f -name "*.apk" -print
 
-          OUT="app-release.apk"
-          cp "$APK" "$OUT"
-          echo "path=$OUT" >> "$GITHUB_OUTPUT"
-          echo "Release APK: $OUT"
-          ls -lh "$OUT"
+          MOBILE_8A="$(find app/build/outputs/apk -type f -name "*.apk" | grep -Ei 'mobile.*arm64|arm64.*mobile' | head -n1 || true)"
+          MOBILE_7A="$(find app/build/outputs/apk -type f -name "*.apk" | grep -Ei 'mobile.*armeabi|armeabi.*mobile|mobile.*v7a|v7a.*mobile' | head -n1 || true)"
+          TV_8A="$(find app/build/outputs/apk -type f -name "*.apk" | grep -Ei '(leanback|tv).*arm64|arm64.*(leanback|tv)' | head -n1 || true)"
+          TV_7A="$(find app/build/outputs/apk -type f -name "*.apk" | grep -Ei '(leanback|tv).*(armeabi|v7a)|(armeabi|v7a).*(leanback|tv)' | head -n1 || true)"
 
-      - name: Publish APK to GitHub Releases
+          [ -n "$MOBILE_8A" ] || { echo "::error::未找到手机 arm64-v8a APK"; exit 1; }
+          [ -n "$MOBILE_7A" ] || { echo "::error::未找到手机 armeabi-v7a APK"; exit 1; }
+          [ -n "$TV_8A" ] || { echo "::error::未找到电视 arm64-v8a APK"; exit 1; }
+          [ -n "$TV_7A" ] || { echo "::error::未找到电视 armeabi-v7a APK"; exit 1; }
+
+          cp "$MOBILE_8A" dist/手机版-arm64-v8a.apk
+          cp "$MOBILE_7A" dist/手机版-armeabi-v7a.apk
+          cp "$TV_8A" dist/电视版-arm64-v8a.apk
+          cp "$TV_7A" dist/电视版-armeabi-v7a.apk
+
+          echo "== Release APKs =="
+          ls -lh dist/
+
+      - name: Upload four APKs to Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: 四版本-APK
+          path: dist/*.apk
+          if-no-files-found: error
+
+      # ===================== 发布到 GitHub Releases 的“资源”位置 =====================
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: 最新构建
-          files: ${{ steps.apk.outputs.path }}
+          tag_name: auto-${{ github.run_number }}
+          name: 自动构建的 Release APK
+          body: |
+            自动构建的四版本 APK
+
+            Commit: ${{ github.sha }}
+
+            - 手机版 arm64-v8a
+            - 手机版 armeabi-v7a
+            - 电视版 arm64-v8a
+            - 电视版 armeabi-v7a
+          files: |
+            dist/手机版-arm64-v8a.apk
+            dist/手机版-armeabi-v7a.apk
+            dist/电视版-arm64-v8a.apk
+            dist/电视版-armeabi-v7a.apk
           prerelease: false
           make_latest: true
           fail_on_unmatched_files: true
-          generate_release_notes: false
-          body: |
-            自动构建的 Release APK
-            Commit: ${{ github.sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
