@@ -27,6 +27,7 @@ import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.databinding.ActivityWebHomeBinding;
 import com.fongmi.android.tv.server.Server;
+import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.fongmi.android.tv.utils.Util;
 import com.github.catvod.utils.Json;
@@ -39,7 +40,8 @@ import java.util.Map;
 public class WebHomeActivity extends AppCompatActivity {
 
     private static final String BRIDGE = "fongmiBridge";
-    private static final long DIAG_DELAY_MS = 4000;
+    private static final String BROWSER_SCHEME = "fmbrowser:";
+    private static final long DIAG_DELAY_MS = 8000;
     private static boolean active;
 
     private ActivityWebHomeBinding mBinding;
@@ -119,6 +121,15 @@ public class WebHomeActivity extends AppCompatActivity {
                 errorShown = true;
                 showErrorPage(description(error.getDescription()), String.valueOf(error.getErrorCode()));
             }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                if (request.getUrl().toString().startsWith(BROWSER_SCHEME)) {
+                    openInBrowser();
+                    return true;
+                }
+                return super.shouldOverrideUrlLoading(view, request);
+            }
         });
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -161,7 +172,7 @@ public class WebHomeActivity extends AppCompatActivity {
     }
 
     private void showDiagnosisPage() {
-        String body = "<h2>页面内容为空</h2><p>页面已打开但没有渲染出内容。常见原因是系统 WebView 版本过低，无法运行该页面使用的 JS 框架。</p><p>建议到应用商店更新「Android System WebView」和「Chrome」后重试。</p>";
+        String body = "<h2>页面内容为空</h2><p>页面已打开但没有渲染出内容。最常见原因是页面内部请求的网络资源无法访问（例如 GitHub 相关域名直连被墙），其次是系统 WebView 版本过低。</p><p>建议用手机浏览器打开同一地址对比：若浏览器也空白，请检查网络或使用代理；若浏览器正常，请到应用商店更新「Android System WebView」。</p>";
         showPage(body);
     }
 
@@ -169,8 +180,16 @@ public class WebHomeActivity extends AppCompatActivity {
         String html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><style>body{background:#141414;color:#e8e8e8;font-family:sans-serif;padding:28px;font-size:16px;line-height:1.7}h2{font-size:19px;margin:0 0 14px;color:#fff}a{color:#8ab4f8}</style></head><body>"
                 + body
                 + "<p><b>WebView：</b>" + description(webviewVersion()) + "<br><b>Android：</b>" + Build.VERSION.SDK_INT + "<br><b>地址：</b>" + description(home) + "</p>"
-                + "<p><a href=\"" + home + "\">重新加载</a></p></body></html>";
+                + "<p><a href=\"" + home + "\">重新加载</a>　<a href=\"" + BROWSER_SCHEME + "open\">在浏览器打开验证</a></p></body></html>";
         mBinding.webView.loadDataWithBaseURL(home, html, "text/html", "utf-8", null);
+    }
+
+    private void openInBrowser() {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(home)));
+        } catch (Exception e) {
+            Notify.show(e.getMessage());
+        }
     }
 
     private String webviewVersion() {

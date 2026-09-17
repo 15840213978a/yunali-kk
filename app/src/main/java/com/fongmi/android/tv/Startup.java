@@ -1,6 +1,8 @@
 package com.fongmi.android.tv;
 
 import android.content.Context;
+import android.os.Looper;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.startup.Initializer;
@@ -27,10 +29,30 @@ public class Startup implements Initializer<Void> {
     @Override
     public Void create(@NonNull Context context) {
         CaocConfig.Builder.create().trackActivities(true).backgroundMode(CaocConfig.BACKGROUND_MODE_SILENT).errorActivity(CrashActivity.class).apply();
+        initCrashGuard();
         Logger.addLogAdapter(new AndroidLogAdapter(PrettyFormatStrategy.newBuilder().methodCount(0).showThreadInfo(false).tag("TV").build()));
         EventBus.builder().addIndex(new EventIndex()).installDefaultEventBus();
         OkHttp.dns().setDoh(Doh.objectFrom(Setting.getDoh()));
         return null;
+    }
+
+    private void initCrashGuard() {
+        Thread.UncaughtExceptionHandler delegate = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            if (isSpiderCrash(thread, throwable)) {
+                Log.e("TV", "Spider crash ignored: " + Log.getStackTraceString(throwable));
+                return;
+            }
+            if (delegate != null) delegate.uncaughtException(thread, throwable);
+        });
+    }
+
+    private boolean isSpiderCrash(Thread thread, Throwable throwable) {
+        if (thread == Looper.getMainLooper().getThread()) return false;
+        for (StackTraceElement element : throwable.getStackTrace()) {
+            if (element.getClassName().startsWith("com.github.catvod.spider")) return true;
+        }
+        return false;
     }
 
     @NonNull
